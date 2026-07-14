@@ -1,5 +1,6 @@
 package main
 
+import "core:slice"
 import "core:os"
 import "core:fmt"
 import "core:strings"
@@ -13,7 +14,7 @@ PLAYER :: Style { vt.BOLD + ";" + vt.FG_BRIGHT_BLUE, 'X' }
 COMP   :: Style { vt.BOLD + ";" + vt.FG_RED, 'O' }
 EMPTY  :: '.'
 
-Dir :: enum { Up, Down, Left, Right }
+Dir  :: enum { Up, Down, Left, Right }
 DIRS :: [Dir][2]i8 {
 	.Up    = { 0, -1 },
 	.Down  = { 0, +1 },
@@ -21,7 +22,19 @@ DIRS :: [Dir][2]i8 {
 	.Right = { +1, 0 },
 }
 
+WIN_STATES := [8][3][2]i8 {
+	{{0, 0}, {0, 1}, {0, 2}},
+	{{1, 0}, {1, 1}, {1, 2}},
+	{{2, 0}, {2, 1}, {2, 2}},
+	{{0, 0}, {1, 0}, {2, 0}},
+	{{0, 1}, {1, 1}, {2, 1}},
+	{{0, 2}, {1, 2}, {2, 2}},
+	{{0, 0}, {1, 1}, {2, 2}},
+	{{0, 2}, {1, 1}, {2, 0}}
+}
+
 sel : [2]i8
+won : Maybe([3][2]i8)
 grid := [3][3]byte{0..=2 = {0..=2 = '.'}}
 
 cell :: proc(pos: [2]i8) -> ^byte {
@@ -52,6 +65,8 @@ in_range :: proc(pos: [2]i8) -> bool {
 }
 
 input :: proc(ch: byte) {
+	if _, w := won.?; w do return
+
 	tmp := sel
 	switch ch {
 	case 'w':
@@ -67,7 +82,17 @@ input :: proc(ch: byte) {
 			t^ = PLAYER.glyph
 		}
 	}
+
 	if in_range(tmp) do sel = tmp
+}
+
+check_win :: proc() {
+	for cond in WIN_STATES {
+		c0, c1, c2 := cond[0], cond[1], cond[2]
+		if cell(c0)^ == cell(c1)^ &&
+	 	   cell(c0)^ == cell(c2)^ &&
+		   cell(c0)^ != EMPTY { won = cond }
+	}
 }
 
 draw :: proc(sb: ^strings.Builder) {
@@ -92,8 +117,14 @@ draw :: proc(sb: ^strings.Builder) {
 	write_string(sb, "╔═══╦═══╦═══╗\n")
 	for row, y in grid {
 		for glyph, x in row {
+			x, y := i8(x), i8(y)
 			write_rune(sb, '║')
-			write_cell(sb, glyph, sel == {i8(x), i8(y)})
+			switch &w in won {
+			case [3][2]i8:
+				_, found := slice.linear_search(w[:], [?]i8{x, y})
+				write_cell(sb, glyph, found)
+			case: write_cell(sb, glyph, sel == {x, y})
+			}
 		}
 		write_string(sb, "║\n")
 		if y != 2 do write_string(sb, "╠═══╬═══╬═══╣\n")
@@ -103,7 +134,6 @@ draw :: proc(sb: ^strings.Builder) {
 
 	fmt.println(to_string(sb^))
 	reset(sb)
-
 }
 
 main :: proc() {
@@ -114,7 +144,6 @@ main :: proc() {
 	defer strings.builder_destroy(&sb)
 
 	buf : [8]byte
-	grid[1][0] = PLAYER.glyph
 
 	for {
 		draw(&sb)
@@ -124,6 +153,7 @@ main :: proc() {
 		for ch in buf[:n] {
 			if ch == 'q' || ch == '\x03' do return
 			input(ch)
+			check_win()
 		}
 	}
 }
