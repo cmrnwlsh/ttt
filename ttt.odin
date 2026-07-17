@@ -153,7 +153,8 @@ main :: proc() {
 		for ch in buf[:n] {
 			if ch == 'q' || ch == '\x03' do return
 			input(ch)
-			check_win()
 		}
+		check_win()
+
 	}
 }
