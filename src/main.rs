@@ -200,9 +200,10 @@ impl Widget for &State {
       })
       .intersperse("╠═══╬═══╬═══╣".into());
 
-    iter::once(Line::from("╔═══╦═══╦═══╗"))
+    [Line::default(), Line::from("╔═══╦═══╦═══╗")]
+      .into_iter()
       .chain(rows)
-      .chain(iter::once(Line::from("╚═══╩═══╩═══╝")))
+      .chain([Line::from("╚═══╩═══╩═══╝"), Line::default()].into_iter())
       .collect::<Text>()
       .render(area, buf);
   }
@@ -218,7 +219,7 @@ impl Terminal {
     Ok(Self {
       origin: Some(cursor::position()?),
       term: ratatui::init_with_options(TerminalOptions {
-        viewport: Viewport::Inline(7),
+        viewport: Viewport::Inline(9),
       }),
     })
   }
@@ -227,7 +228,7 @@ impl Terminal {
 impl Drop for Terminal {
   fn drop(&mut self) {
     if let Some((col, row)) = self.origin {
-      let _ = execute!(stdout(), cursor::MoveTo(col, row + 7));
+      let _ = execute!(stdout(), cursor::MoveTo(col, row + 9));
     }
     ratatui::restore();
     println!()
